@@ -1,30 +1,33 @@
-# Service for usage data and billing calculations
-from typing import List
-from ..models import UsageData, Contract
+# 간단화된 UsageService 예시
+from sqlalchemy.orm import Session
+from ..models.usage_data import UsageCreate, UsageRead
+from ..database import Base, engine
+from sqlalchemy import Column, Integer, Float, String, Date
 
-# In-memory store for demo purposes
-_usage_data: List[UsageData] = []
-_next_id = 1
+class UsageORM(Base):
+    __tablename__ = "usage_data"
+    id = Column(Integer, primary_key=True, index=True)
+    contract_id = Column(Integer, nullable=False)
+    usage_date = Column(Date, nullable=False)
+    volume = Column(Float, nullable=False)
+    unit = Column(String, nullable=False)
 
-# Simple billing: cost = usage_kwh * rate_per_unit
+Base.metadata.create_all(bind=engine)
 
-def create_usage(contract_id: int, usage_kwh: float, recorded_at: str) -> UsageData:
-    global _next_id
-    usage = UsageData(id=_next_id, contract_id=contract_id, usage_kwh=usage_kwh, recorded_at=recorded_at)
-    _next_id += 1
-    _usage_data.append(usage)
-    return usage
+class UsageService:
+    @staticmethod
+    def record_usage(db: Session, usage: UsageCreate) -> UsageRead:
+        db_usage = UsageORM(**usage.dict())
+        db.add(db_usage)
+        db.commit()
+        db.refresh(db_usage)
+        return UsageRead.from_orm(db_usage)
 
-def list_usage() -> List[UsageData]:
-    return _usage_data
+    @staticmethod
+    def list_usages(db: Session, skip: int = 0, limit: int = 100):
+        usages = db.query(UsageORM).offset(skip).limit(limit).all()
+        return [UsageRead.from_orm(u) for u in usages]
 
-def get_usage(usage_id: int) -> UsageData:
-    for u in _usage_data:
-        if u.id == usage_id:
-            return u
-    raise ValueError("Usage data not found")
-
-# Billing calculation
-
-def calculate_bill(contract: Contract, usage: UsageData) -> float:
-    return usage.usage_kwh * contract.rate_per_unit
+    @staticmethod
+    def get_usage(db: Session, usage_id: int):
+        return db.query(UsageORM).filter(UsageORM.id == usage_id).first()

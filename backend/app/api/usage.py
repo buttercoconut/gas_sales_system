@@ -1,37 +1,24 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 from typing import List
+
+from ..models.usage_data import UsageCreate, UsageRead
+from ..services.usage_service import UsageService
+from ..dependencies import get_db
 
 router = APIRouter()
 
-class UsageDataCreate(BaseModel):
-    contract_id: int
-    usage_kwh: float
-    recorded_at: str
+@router.post("/", response_model=UsageRead, status_code=status.HTTP_201_CREATED)
+async def record_usage(usage: UsageCreate, db: Session = Depends(get_db)):
+    return UsageService.record_usage(db, usage)
 
-class UsageDataOut(UsageDataCreate):
-    id: int
+@router.get("/", response_model=List[UsageRead])
+async def list_usages(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return UsageService.list_usages(db, skip=skip, limit=limit)
 
-# In-memory store for demo purposes
-_usage_data = []
-_next_id = 1
-
-@router.post("/", response_model=UsageDataOut)
-def create_usage(data: UsageDataCreate):
-    global _next_id
-    data_dict = data.dict()
-    data_dict["id"] = _next_id
-    _next_id += 1
-    _usage_data.append(data_dict)
-    return data_dict
-
-@router.get("/", response_model=List[UsageDataOut])
-def list_usage():
-    return _usage_data
-
-@router.get("/{usage_id}", response_model=UsageDataOut)
-def get_usage(usage_id: int):
-    for u in _usage_data:
-        if u["id"] == usage_id:
-            return u
-    raise HTTPException(status_code=404, detail="Usage data not found")
+@router.get("/{usage_id}", response_model=UsageRead)
+async def get_usage(usage_id: int, db: Session = Depends(get_db)):
+    usage = UsageService.get_usage(db, usage_id)
+    if not usage:
+        raise HTTPException(status_code=404, detail="Usage data not found")
+    return usage

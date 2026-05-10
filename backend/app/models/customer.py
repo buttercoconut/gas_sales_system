@@ -1,20 +1,22 @@
-"""Customer model definitions using Pydantic and SQLAlchemy."""
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, Field
 from typing import Optional
-from datetime import datetime
 
 class CustomerBase(BaseModel):
-    name: str
-    email: EmailStr
-    phone: Optional[str] = None
-    address: Optional[str] = None
+    name: str = Field(..., example="홍길동")
+    email: str = Field(..., example="hong@example.com")
+    phone: Optional[str] = Field(None, example="010-1234-5678")
+    address: Optional[str] = Field(None, example="서울특별시 강남구")
 
 class CustomerCreate(CustomerBase):
-    password: str
+    pass
+
+class CustomerUpdate(BaseModel):
+    name: Optional[str]
+    email: Optional[str]
+    phone: Optional[str]
+    address: Optional[str]
 
 class CustomerRead(CustomerBase):
     id: int
-    created_at: datetime
-
     class Config:
         orm_mode = True

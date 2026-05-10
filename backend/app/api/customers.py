@@ -1,37 +1,38 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 from typing import List
+
+from ..models.customer import CustomerCreate, CustomerRead, CustomerUpdate
+from ..services.customer_service import CustomerService
+from ..dependencies import get_db
 
 router = APIRouter()
 
-class CustomerCreate(BaseModel):
-    name: str
-    email: str
-    phone: str
+@router.post("/", response_model=CustomerRead, status_code=status.HTTP_201_CREATED)
+async def create_customer(customer: CustomerCreate, db: Session = Depends(get_db)):
+    return CustomerService.create_customer(db, customer)
 
-class CustomerOut(CustomerCreate):
-    id: int
+@router.get("/", response_model=List[CustomerRead])
+async def list_customers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return CustomerService.list_customers(db, skip=skip, limit=limit)
 
-# In-memory store for demo purposes
-_customers = []
-_next_id = 1
+@router.get("/{customer_id}", response_model=CustomerRead)
+async def get_customer(customer_id: int, db: Session = Depends(get_db)):
+    customer = CustomerService.get_customer(db, customer_id)
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return customer
 
-@router.post("/", response_model=CustomerOut)
-def create_customer(customer: CustomerCreate):
-    global _next_id
-    customer_dict = customer.dict()
-    customer_dict["id"] = _next_id
-    _next_id += 1
-    _customers.append(customer_dict)
-    return customer_dict
+@router.put("/{customer_id}", response_model=CustomerRead)
+async def update_customer(customer_id: int, customer: CustomerUpdate, db: Session = Depends(get_db)):
+    updated = CustomerService.update_customer(db, customer_id, customer)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return updated
 
-@router.get("/", response_model=List[CustomerOut])
-def list_customers():
-    return _customers
-
-@router.get("/{customer_id}", response_model=CustomerOut)
-def get_customer(customer_id: int):
-    for c in _customers:
-        if c["id"] == customer_id:
-            return c
-    raise HTTPException(status_code=404, detail="Customer not found")
+@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_customer(customer_id: int, db: Session = Depends(get_db)):
+    deleted = CustomerService.delete_customer(db, customer_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return None

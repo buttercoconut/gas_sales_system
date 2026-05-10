@@ -1,13 +1,25 @@
 from fastapi import FastAPI
-from .api import contracts, customers, usage, payments
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Gas Sales System API")
+from .api import customers, contracts, usage, payments
 
-app.include_router(contracts.router, prefix="/contracts", tags=["contracts"])
-app.include_router(customers.router, prefix="/customers", tags=["customers"])
-app.include_router(usage.router, prefix="/usage", tags=["usage"])
-app.include_router(payments.router, prefix="/payments", tags=["payments"])
+app = FastAPI(title="Gas Sales System API", version="1.0.0")
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("backend.app.main:app", host="0.0.0.0", port=8000, reload=True)
+# CORS 설정 (필요에 따라 도메인 조정)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 라우터 포함
+app.include_router(customers.router, prefix="/customers", tags=["Customers"])
+app.include_router(contracts.router, prefix="/contracts", tags=["Contracts"])
+app.include_router(usage.router, prefix="/usage", tags=["Usage"])
+app.include_router(payments.router, prefix="/payments", tags=["Payments"])
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}

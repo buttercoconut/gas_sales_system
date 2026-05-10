@@ -1,21 +1,13 @@
-"""Payment model and schemas."""
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
-from datetime import datetime
 
-class PaymentBase(BaseModel):
-    customer_id: int
-    amount: float
-    method: str
-    status: str
-    timestamp: datetime
+class PaymentCreate(BaseModel):
+    contract_id: int = Field(..., example=1)
+    amount: float = Field(..., example=50000.0)
+    payment_date: str = Field(..., example="2024-05-15")
+    method: str = Field(..., example="credit_card")
 
-class PaymentCreate(PaymentBase):
-    pass
-
-class PaymentRead(PaymentBase):
+class PaymentRead(PaymentCreate):
     id: int
-    created_at: datetime
-
     class Config:
         orm_mode = True

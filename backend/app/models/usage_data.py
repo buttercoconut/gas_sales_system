@@ -1,20 +1,13 @@
-"""Usage data model and schemas."""
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
-from datetime import datetime
 
-class UsageBase(BaseModel):
-    contract_id: int
-    timestamp: datetime
-    volume: float
-    unit: str
+class UsageCreate(BaseModel):
+    contract_id: int = Field(..., example=1)
+    usage_date: str = Field(..., example="2024-05-01")
+    volume: float = Field(..., example=120.5)
+    unit: str = Field(..., example="kWh")
 
-class UsageCreate(UsageBase):
-    pass
-
-class UsageRead(UsageBase):
+class UsageRead(UsageCreate):
     id: int
-    created_at: datetime
-
     class Config:
         orm_mode = True

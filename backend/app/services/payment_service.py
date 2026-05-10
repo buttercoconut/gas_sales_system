@@ -1,23 +1,33 @@
-# Service for payment processing
-from typing import List
-from ..models import Payment
+# 간단화된 PaymentService 예시
+from sqlalchemy.orm import Session
+from ..models.payment import PaymentCreate, PaymentRead
+from ..database import Base, engine
+from sqlalchemy import Column, Integer, Float, String, Date
 
-# In-memory store for demo purposes
-_payments: List[Payment] = []
-_next_id = 1
+class PaymentORM(Base):
+    __tablename__ = "payments"
+    id = Column(Integer, primary_key=True, index=True)
+    contract_id = Column(Integer, nullable=False)
+    amount = Column(Float, nullable=False)
+    payment_date = Column(Date, nullable=False)
+    method = Column(String, nullable=False)
 
-def create_payment(contract_id: int, amount: float, paid_at: str) -> Payment:
-    global _next_id
-    payment = Payment(id=_next_id, contract_id=contract_id, amount=amount, paid_at=paid_at)
-    _next_id += 1
-    _payments.append(payment)
-    return payment
+Base.metadata.create_all(bind=engine)
 
-def list_payments() -> List[Payment]:
-    return _payments
+class PaymentService:
+    @staticmethod
+    def create_payment(db: Session, payment: PaymentCreate) -> PaymentRead:
+        db_payment = PaymentORM(**payment.dict())
+        db.add(db_payment)
+        db.commit()
+        db.refresh(db_payment)
+        return PaymentRead.from_orm(db_payment)
 
-def get_payment(payment_id: int) -> Payment:
-    for p in _payments:
-        if p.id == payment_id:
-            return p
-    raise ValueError("Payment not found")
+    @staticmethod
+    def list_payments(db: Session, skip: int = 0, limit: int = 100):
+        payments = db.query(PaymentORM).offset(skip).limit(limit).all()
+        return [PaymentRead.from_orm(p) for p in payments]
+
+    @staticmethod
+    def get_payment(db: Session, payment_id: int):
+        return db.query(PaymentORM).filter(PaymentORM.id == payment_id).first()
